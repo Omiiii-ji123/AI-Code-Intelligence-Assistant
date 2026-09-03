@@ -153,9 +153,9 @@ Developers joining unfamiliar codebases spend disproportionate time understandin
 | FR ID | Traces to Charter Item |
 |---|---|
 | FR-021 | In-Scope: "Answer structural questions about the repo (architecture, dependencies, module purpose), grounded in parsed data" |
-| FR-022 | In-Scope: "Answer structural questions about the repo (architecture, dependencies, module purpose), grounded in parsed data" |
-| FR-023 | In-Scope: "Answer structural questions about the repo (architecture, dependencies, module purpose), grounded in parsed data" |
-| FR-024 | In-Scope: "Basic code smell / refactor suggestions"; Constraint: "Prioritize correctness, maintainability, and explainability over feature breadth — every feature must be fully understood, tested, and documented before new functionality is added" |
+| FR-022 | In-Scope: "Answer structural questions about the repo…" |
+| FR-023 | In-Scope: "Answer structural questions about the repo…" |
+| FR-024 | In-Scope: "Basic code smell / refactor suggestions"; Constraint: correctness/explainability priority |
 | FR-025 | In-Scope: "Basic code smell / refactor suggestions" |
 | FR-026 | Problem Statement: "structured, grounded software engineering insight — not conversational AI" |
 
@@ -182,7 +182,7 @@ Developers joining unfamiliar codebases spend disproportionate time understandin
 | ID | Requirement |
 |---|---|
 | FR-030 | Anonymous Session Creation — The system shall create a temporary, unauthenticated session for any user who submits a repository for analysis without signing in. |
-| FR-031 | Session-Scoped Access — The system shall scope an anonymous session's analysis results and search activity to that session only, with no access from other sessions or devices. |
+| FR-031 | Session-Scoped Access — The system shall scope an anonymous session's access, history, and record of its analysis and search activity to that session only, with no access from other sessions or devices. This scoping applies to the session's access relationship to analyses, not to the underlying shared repository analysis cache, which remains governed by FR-027–FR-029 and may be reused across sessions when its cached version remains valid. |
 | FR-032 | Session Expiration and Data Removal — The system shall expire anonymous sessions after a configurable period of inactivity, and shall remove all session-scoped metadata, access, and history associated with an expired anonymous session. Expiration shall not delete the underlying repository analysis cache governed by FR-027–FR-029, which is independent of any individual session and may be reused by subsequent analyses while its cached version remains valid. |
 
 **Explicit MVP exclusion:** Claiming anonymous session data after sign-up — logged as a Future Enhancement, not a Functional Requirement.
@@ -200,12 +200,12 @@ Developers joining unfamiliar codebases spend disproportionate time understandin
 | ID | Requirement |
 |---|---|
 | FR-033 | User Authentication — The system shall authenticate users via Firebase Authentication before granting access to persistent data features. |
-| FR-034 | Save Analyzed Repository — The system shall allow an authenticated user to save a repository analysis to their account for future access. |
+| FR-034 | Save Analyzed Repository — The system shall allow an authenticated user to save a repository analysis to their account for future access. If the user attempts to save a repository analysis already saved to their account, the system shall reuse or update the existing saved record rather than creating a duplicate. |
 | FR-035 | View Analysis History — The system shall allow an authenticated user to view a list of their previously saved repository analyses. |
 | FR-036 | Reopen Saved Analysis — The system shall allow an authenticated user to reopen a previously saved analysis without triggering reprocessing, provided the cached analysis is still valid (per FR-028). This validity check is shared functionality, not duplicated between authenticated and anonymous workflows. |
 | FR-037 | Delete Saved Analysis — The system shall allow an authenticated user to delete a saved analysis from their own account. Deletion shall remove the analysis only from that user's account and shall not affect analyses or shared cached analysis data associated with other users. |
 | FR-038 | Authenticated Session Repository Submission — The system shall allow an authenticated user to submit a new repository for analysis directly, with results eligible for saving under FR-034. |
-| FR-039 | User Data Isolation — The system shall ensure that authenticated users can access, modify, and delete only repository analyses associated with their own account. |
+| FR-039 | User Data Isolation — The system shall ensure that authenticated users can access, modify, and delete only their own saved-analysis records and account-associated history. This isolation applies to the user's saved-analysis records, not to the underlying shared repository analysis cache, which remains governed by FR-027–FR-029 and may be reused across users when its cached version remains valid. |
 
 **Traceability**
 
@@ -224,7 +224,7 @@ Developers joining unfamiliar codebases spend disproportionate time understandin
 | ID | Requirement |
 |---|---|
 | FR-040 | Repository Submission Interface — The system shall provide a UI for submitting a public GitHub repository URL for analysis. |
-| FR-041 | Analysis Progress Indication — The system shall indicate analysis progress or status to the user while ingestion and parsing are in progress. |
+| FR-041 | Analysis Progress Indication — The system shall indicate analysis progress or status to the user while repository analysis (ingestion, parsing, and embedding generation) is in progress. |
 | FR-042 | Structural Overview Display — The system shall display the repository's structural overview (modules, classes, functions, dependency graph) in a navigable UI. |
 | FR-043 | Semantic Search Interface — The system shall provide a UI for submitting natural-language search queries and viewing results with source context (per FR-019). |
 | FR-044 | On-Demand Explanation Interface — The system shall provide a UI mechanism for requesting architecture, module, and dependency explanations on demand (per FR-021–023). |
@@ -255,18 +255,179 @@ Developers joining unfamiliar codebases spend disproportionate time understandin
 - Claiming anonymous session data after sign-up
 - Admin role / RBAC
 
-## 4. Non Functional Requirements
+## 4. Non-Functional Requirements
 
-*Pending — to be completed in the next Requirements Analysis session.*
+### NFR Group 1: Performance & Resource Constraints
 
-## 5. Assumptions
+| ID | Requirement |
+|---|---|
+| NFR-001 | Repository Size Constraint — The system shall define and enforce an operational maximum repository size (file count and/or total size) to ensure ingestion, parsing, and embedding generation complete successfully within free-tier compute and memory limits. *Acceptance check:* the system rejects or gracefully handles repositories beyond the configured limit, rather than failing silently or crashing. *Not fixed in this SRS:* the exact numeric limit — an implementation/configuration decision, to be set empirically during implementation. |
+| NFR-002 | Semantic Search Responsiveness — The system shall return semantic search results with responsiveness suitable for interactive use on free-tier infrastructure, without unexplained delay that would make search feel broken or unusable. *Acceptance check:* manual/exploratory verification that a user can issue a query and receive results without an indefinite or unexplained wait. *Not fixed in this SRS:* a numeric latency target — to be measured from real free-tier performance during testing/implementation. |
+| NFR-003 | Long-Running Operation Feedback — The system shall provide progress or status feedback (per FR-041) for any analysis operation that runs long enough that a user could reasonably believe the system has stalled or failed. *Acceptance check:* no operation leaves the user without any status indication for an extended, unexplained period. *Not fixed in this SRS:* the specific duration threshold defining "long-running" — to be derived from observed pipeline timing during implementation/testing. |
 
-*Pending.*
+**Traceability**
+
+| NFR ID | Traces to Charter Item |
+|---|---|
+| NFR-001 | Constraint: "Budget: minimize cost; free-tier infra (Render, Firebase, Gemini) accepted as a known limitation, not a surprise — expect to hit rate/sleep limits and plan around them in HLD" |
+| NFR-002 | Non-Functional Success Criteria: "Reasonable response latency for semantic search on free-tier infrastructure" |
+| NFR-003 | FR-041 (Analysis Progress Indication); Constraint: "Budget: minimize cost; free-tier infra (Render, Firebase, Gemini) accepted as a known limitation, not a surprise — expect to hit rate/sleep limits and plan around them in HLD" |
+
+### NFR Group 2: Reliability & Data Integrity
+
+| ID | Requirement |
+|---|---|
+| NFR-004 | Fault Containment in Analysis Pipeline — A failure in one stage of the analysis pipeline (parsing, embedding generation, LLM-grounded insight generation) shall not corrupt the system's state or cause unrelated data (e.g., other users' sessions, other repositories' cached analyses) to become invalid or inconsistent. *Acceptance check:* a failure during one repository's analysis has no observable effect on any other repository's data, session, or previously completed analysis. |
+| NFR-005 | No Partial Analysis Persisted as Valid Cache — The system shall not persist an incomplete analysis run as a complete, reusable cached result. If an analysis fails partway through, the incomplete run shall be discarded rather than marked as valid, and the next request for that repository shall restart the full analysis pipeline from the beginning. *Acceptance check:* a repository whose analysis previously failed partway through triggers a full re-analysis on the next request — no partial state is served or resumed. *Explicit MVP exclusion:* partial-stage persistence and resume/retry from a failed stage — logged as a Future Enhancement. |
+| NFR-006 | Grounding Traceability Integrity — Every LLM-generated insight persisted or displayed by the system shall remain traceable to the specific parsed repository data it was grounded in, consistent with FR-020 and FR-026. *Acceptance check:* it is always possible to identify which parsed entity/data an insight was derived from — no orphaned or unattributable LLM output. |
+| NFR-007 | Reliable Session Data Cleanup — Expired anonymous session data (per FR-032) shall be reliably removed such that expired session data does not persist indefinitely or accumulate unbounded on free-tier storage. *Acceptance check:* no expired anonymous session's data remains accessible or occupies storage beyond a bounded, verifiable cleanup process. |
+
+**Traceability**
+
+| NFR ID | Traces to Charter Item / FR |
+|---|---|
+| NFR-004 | Constraint: "Prioritize correctness, maintainability, and explainability over feature breadth — every feature must be fully understood, tested, and documented before new functionality is added" |
+| NFR-005 | FR-027 (Analysis Result Persistence); FR-028 (Cache Validity Check); Constraint: correctness/consistency over feature breadth |
+| NFR-006 | FR-020 (Search Result Traceability); FR-026 (LLM Output Grounding Constraint) |
+| NFR-007 | FR-032 (Session Expiration and Data Removal); Constraint: "Budget: minimize cost; free-tier infra (Render, Firebase, Gemini) accepted as a known limitation, not a surprise — expect to hit rate/sleep limits and plan around them in HLD" |
+
+### NFR Group 3: Security & Access Control
+
+| ID | Requirement |
+|---|---|
+| NFR-008 | Authenticated Endpoint Protection — Any system operation that reads, modifies, or deletes data associated with an authenticated user's account shall require valid authentication before executing. *Acceptance check:* an unauthenticated request to any such operation is rejected, never partially executed. |
+| NFR-009 | Cross-User Data Isolation Enforcement — The system shall enforce, at the point of every data access, that an authenticated user cannot read, modify, or delete another user's saved analyses — consistent with FR-039. *Acceptance check:* a request for another user's data, even if the resource ID is known or guessed, is rejected. |
+| NFR-010 | Cross-Session Anonymous Isolation Enforcement — The system shall enforce that one anonymous session cannot access another anonymous session's scoped data — consistent with FR-031. *Acceptance check:* a request using a different or absent session identifier cannot retrieve another session's results. |
+| NFR-011 | Secrets and Credential Protection — The system shall not expose API keys, database credentials, or other secrets in client-facing responses, logs, or error messages. *Acceptance check:* inspecting any client-facing response, log, or error message never reveals a credential or key value. |
+| NFR-012 | Non-Execution of Untrusted Repository Content — The system shall treat all repository content as untrusted data and shall never execute, `eval`, or otherwise run code from an analyzed repository. *Acceptance check:* analysis of a repository containing malicious or arbitrary code does not result in that code executing within the system. |
+| NFR-013 | Resource Abuse Prevention — The system shall apply reasonable limits to repository analysis submissions to prevent a single user or anonymous session from exhausting free-tier compute or API resources. *Acceptance check:* repeated, rapid repository submissions from a single user/session are constrained rather than processed without limit. *Not fixed in this SRS:* the specific numeric limits and enforcement mechanism — deferred to HLD/implementation. |
+
+**Traceability**
+
+| NFR ID | Traces to Charter Item / FR |
+|---|---|
+| NFR-008 | FR-033: User Authentication; Approved User Roles: Authenticated User |
+| NFR-009 | FR-039: User Data Isolation |
+| NFR-010 | FR-031: Session-Scoped Access |
+| NFR-011 | Derived security requirement necessary to safely operate approved Firebase and Gemini integrations |
+| NFR-012 | In-Scope: Public repository ingestion; Derived security requirement: third-party repository content is untrusted |
+| NFR-013 | Constraint: Budget/free-tier infrastructure limitations |
+
+### NFR Group 4: Maintainability & Architecture Quality
+
+| ID | Requirement |
+|---|---|
+| NFR-014 | Separation of Concerns — The system's ingestion, parsing, embedding, persistence, and presentation logic shall be organized into distinct modules, each with clearly defined primary ownership of its responsibility, without unnecessary duplication of that responsibility across modules. *Acceptance check:* a reviewer can identify, for any major responsibility, which module owns it, and no responsibility is redundantly reimplemented in multiple modules without justification. |
+| NFR-015 | Parser Interface Isolation — Consistent with FR-014, the language-parsing layer shall be isolated behind a defined interface such that Python-specific parsing logic does not leak into ingestion, persistence, or presentation layers. *Acceptance check:* ingestion/persistence/presentation code contains no direct dependency on Python-specific parsing internals. |
+| NFR-016 | Documented Public Interfaces — All REST API endpoints and core module-level interfaces shall be documented with their purpose, inputs, and outputs. *Acceptance check:* a developer unfamiliar with the codebase can determine an endpoint's/module's contract from documentation alone, without reading its implementation. |
+| NFR-017 | Consistent Code Style — The codebase shall follow a single, consistently applied code style and formatting standard across all modules. *Acceptance check:* an automated formatter/linter run against the codebase reports no style violations. |
+| NFR-018 | Solo-Maintainability Constraint — The architecture shall avoid patterns, abstractions, or infrastructure components (e.g., microservices, message brokers, generic plugin frameworks) that are not justified by an actual approved FR or NFR. Every significant architectural component shall be justifiable by a specific requirement it exists to satisfy, with the sole explicit exception of the parser interface abstraction required by FR-014, which is permitted specifically to support future language extensibility. *Acceptance check:* for any significant architectural component under review, a reviewer can name the specific FR or NFR it satisfies; no component exists solely for hypothetical future flexibility outside the FR-014 exception. |
+
+**Traceability**
+
+| NFR ID | Traces to Charter Item / FR |
+|---|---|
+| NFR-014 | Non-Functional Success Criteria: "Modular architecture with clear separation of concerns" |
+| NFR-015 | FR-014: Parser Extensibility |
+| NFR-016 | Non-Functional Success Criteria: "Clean and documented REST APIs" |
+| NFR-017 | Derived maintainability requirement supporting solo-developer explainability (Constraint: correctness/maintainability/explainability priority) |
+| NFR-018 | Derived architectural governance requirement supporting Charter constraints: correctness, maintainability, and explainability over feature breadth; FR-014 parser-interface exception |
+
+### NFR Group 5: Testability
+
+| ID | Requirement |
+|---|---|
+| NFR-019 | Unit Test Coverage for Core Modules — Core backend modules (ingestion, parsing, embedding generation, persistence/caching logic, session handling) shall have unit tests covering their primary behavior and key documented edge/failure cases, prioritizing meaningful coverage over a numeric coverage target. *Acceptance check:* each core module has an associated test suite that exercises its main success path and at least its documented failure modes (e.g., FR-007, FR-013, NFR-005). |
+| NFR-020 | Deterministic Component Testability — Deterministic system components (parsing, rule-based code smell detection, cache validity checks) shall be testable without requiring live network access, live LLM calls, or a live database connection. *Acceptance check:* the deterministic-component test suite runs successfully in isolation (e.g., in CI, offline), without external service dependencies. |
+| NFR-021 | LLM-Dependent Component Test Isolation — Components that depend on the LLM API (architecture/module/dependency explanations, refactoring suggestions) shall be designed such that grounding data selection, input/context construction, traceability of data supplied to the LLM, and failure handling around LLM integration can each be tested independently of the LLM's actual generated wording. *Acceptance check:* it is possible to verify what data was sent to the LLM and how integration failures are handled, without asserting on the specific content of the LLM's response. |
+
+**Traceability**
+
+| NFR ID | Traces to Charter Item / FR |
+|---|---|
+| NFR-019 | Non-Functional Success Criteria: "Unit tests for core backend modules" |
+| NFR-020 | Non-Functional Success Criteria: "Unit tests for core backend modules"; FR-024 (Code Smell Detection — deterministic, rule-based) |
+| NFR-021 | FR-026 (LLM Output Grounding Constraint); FR-020 (Search Result Traceability); Derived testability requirement given non-deterministic external LLM behavior |
+
+### NFR Group 6: Deployability
+
+| ID | Requirement |
+|---|---|
+| NFR-022 | Containerized Deployment — The system shall be deployable via Docker, with all backend dependencies defined in a container image such that the application can be built and run consistently across environments. *Acceptance check:* the application starts and runs correctly from a fresh container build, without manual environment setup steps beyond configuration values. |
+| NFR-023 | Configuration via Environment Variables — Environment-specific values (API keys, database connection strings, service URLs) shall be supplied via environment variables or an external configuration mechanism, not hardcoded into source code. *Acceptance check:* no credential or environment-specific value appears as a literal in source code; the same container image can run against different environments purely by changing configuration. |
+| NFR-024 | Free-Tier Platform Compatibility — The system shall be deployable within the operational constraints of the approved free-tier infrastructure (Render, Firebase, Gemini), including tolerance for platform behaviors such as service sleep/cold-start on inactivity. *Acceptance check:* the deployed application recovers correctly from a cold start without requiring manual intervention. |
+| NFR-025 | Deployment Reproducibility — The system's deployment process shall be documented as a manual, repeatable procedure such that the application can be redeployed from source without undocumented manual steps. Automated CI/CD pipeline tooling is not required for MVP. *Acceptance check:* following the documented deployment steps from a clean environment results in a working deployment, with no undocumented manual steps. |
+
+**Explicit Future Enhancements (not MVP):** automated CI/CD deployment pipelines, blue/green or zero-downtime deployments, multi-region deployment, horizontal scaling.
+
+**Traceability**
+
+| NFR ID | Traces to Charter Item |
+|---|---|
+| NFR-022 | Non-Functional Success Criteria: "Dockerized deployment on Render" |
+| NFR-023 | Derived deployment/security requirement supporting free-tier multi-environment deployment and NFR-011 (Secrets Protection) |
+| NFR-024 | Constraint: "Budget: minimize cost; free-tier infra (Render, Firebase, Gemini) accepted as a known limitation, not a surprise — expect to hit rate/sleep limits and plan around them in HLD" |
+| NFR-025 | Non-Functional Success Criteria: "Dockerized deployment on Render"; Out-of-Scope: "CI/CD integration" (defines the manual-process boundary) |
+
+### NFR Group 7: Usability & Accessibility
+
+| ID | Requirement |
+|---|---|
+| NFR-026 | Core Workflow Discoverability — A first-time user shall be able to identify how to submit a repository for analysis without requiring external instructions, using UI affordances alone (per FR-040). *Acceptance check:* the repository submission entry point is visible and identifiable on the initial page load, without scrolling or navigation. |
+| NFR-027 | Consistent Feedback Across Workflow States — Every core workflow action (submission, progress, search, insight request, save/delete) shall present the user with a clear outcome — success, in-progress, empty, or error — consistent with FR-041, FR-047, and FR-048. *Acceptance check:* no core action leaves the UI in an ambiguous state where the user cannot tell whether it succeeded, failed, or is still running. |
+| NFR-028 | Baseline Keyboard and Screen-Reader Accessibility — Core interactive elements (repository submission, search input, navigation between saved analyses) shall be operable via keyboard and shall expose accessible labels compatible with screen readers, using standard semantic HTML/ARIA practices. *Acceptance check:* core workflow actions can be completed using keyboard navigation alone, and interactive elements have non-empty accessible names. |
+| NFR-029 | Responsive Layout for Common Viewport Sizes — The web UI shall remain usable at common desktop and tablet viewport widths without broken or inaccessible layout elements. *Acceptance check:* the core workflow can be completed without horizontal scrolling or overlapping elements at standard desktop and tablet breakpoints. |
+
+**Explicit Future Enhancements (not MVP):** full WCAG conformance audit, mobile-first responsive design, internationalization/localization, theming/dark mode.
+
+**Traceability**
+
+| NFR ID | Traces to Charter Item / FR |
+|---|---|
+| NFR-026 | FR-040 (Repository Submission Interface) |
+| NFR-027 | FR-041 (Analysis Progress Indication); FR-047 (User Feedback and Error Presentation); FR-048 (Empty State Presentation) |
+| NFR-028 | Derived usability requirement supporting In-Scope: "Web UI to explore results" |
+| NFR-029 | Derived usability requirement supporting In-Scope: "Web UI to explore results" |
+
+## 5. Assumptions & Dependencies
+
+### Assumptions
+
+- **AS-001**: Target repositories submitted for analysis are reasonably sized for free-tier compute, consistent with the operational limit defined in NFR-001 (not itself a new limit — this assumption exists so NFR-001 is understood as protecting against, not solving, unbounded input size).
+- **AS-002**: Users access the system via a modern web browser with JavaScript enabled and a stable internet connection.
+- **AS-003**: Free-tier service quotas (Render, Firebase, Gemini) are sufficient to support demonstration-level and portfolio-review usage, not sustained production-scale traffic.
+- **AS-004**: Users submit publicly accessible repositories, and the system's MVP scope is limited to validating public accessibility rather than independently determining repository licensing or broader usage permissions.
+- **AS-005**: Submitted Python source files are syntactically valid in the general case; files that are not are handled per FR-013 (Parse Failure Handling), not assumed away entirely.
+
+### Dependencies
+
+- **DEP-001 — GitHub**: Availability and accessibility of GitHub for repository cloning and validation (FR-001–FR-004).
+- **DEP-002 — Gemini API**: Availability of the Gemini API for embedding generation and LLM-grounded insight generation (FR-016, FR-021–FR-025).
+- **DEP-003 — ChromaDB**: Availability of ChromaDB as the vector index for semantic search (FR-017).
+- **DEP-004 — Firebase Authentication**: Availability of Firebase Authentication for authenticated user identity (FR-033).
+- **DEP-005 — Render**: Availability of Render as the hosting/deployment platform (NFR-022, NFR-024).
+- **DEP-006 — Persistent Data Store**: Availability of a persistent data store for repository metadata, analysis results, and authenticated user data. The specific database technology shall be selected during High-Level Design.
 
 ## 6. Constraints
 
-*Pending — Non-Functional and cross-cutting constraints from the approved Project Charter will be incorporated here.*
+### 6.1 Charter-Inherited Constraints
+
+- **Timeline**: Multi-month, solo build, no external review — code and docs must be self-explanatory enough to defend solo in an interview.
+- **Budget**: Minimize cost; free-tier infra (Render, Firebase, Gemini) accepted as a known limitation, not a surprise — expect to hit rate/sleep limits and plan around them in HLD.
+- **Language Scope**: Python-only analysis for MVP; parser layer designed behind one clean interface (not a plugin framework) to allow future languages without rewrites.
+- **Engineering Priority**: Prioritize correctness, maintainability, and explainability over feature breadth — every feature must be fully understood, tested, and documented before new functionality is added.
+
+### 6.2 Requirements-Derived Constraints
+
+- **Repository host scope**: Limited to public GitHub repositories only (FR-002, FR-003).
+- **Access model**: MVP access is limited to unauthenticated and authenticated users; no admin-specific functionality, role tables, permission matrices, or RBAC system is implemented in the MVP.
+- **Numeric operational thresholds deferred**: Repository size limits, latency targets, feedback-trigger durations, and rate-limiting thresholds are configuration values set empirically during implementation/testing (NFR-001, NFR-002, NFR-003, NFR-013).
+- **No partial-resume processing**: Failed analyses restart from the beginning; partial-stage persistence and resume logic excluded from MVP (NFR-005).
+- **No automated CI/CD**: Deployment is a documented, repeatable manual process (NFR-025, Charter Out-of-Scope: "CI/CD integration").
+- **Database technology deferred**: The specific persistent data store technology is deferred to High-Level Design (DEP-006).
+- **Advanced static analysis excluded**: Call graphs, control-flow, data-flow, symbol resolution, type inference excluded (FR Group 2 exclusions).
+- **Advanced UX/accessibility excluded**: Full WCAG conformance, mobile-first design, i18n/l10n, theming excluded (NFR Group 7 exclusions).
 
 ## 7. Open Items
 
-*None currently open within the finalized Functional Requirements. Prior open item (anonymous session lifecycle) was resolved in FR Group 6 (FR-030–FR-032).*
+*None currently open. All items previously raised during Requirements Analysis (anonymous session lifecycle; database technology selection; audit-identified wording ambiguities in FR-031, FR-034, FR-039, FR-041) have been resolved and incorporated above. Database technology selection remains a deliberate deferral to High-Level Design (see DEP-006, Section 6.2) — not an open requirements gap.*
